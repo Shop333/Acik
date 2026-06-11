@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "748401117957",
+    "project_id": "bajuadat-app",
+    "storage_bucket": "bajuadat-app.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:748401117957:android:4444a4451f47ccb9cf056c",
+        "android_client_info": {
+          "package_name": "com.aistudio.bajuadat.mvkrpz"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "748401117957-5slk6d90os41e9goecka6n3ln93khgnm.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.aistudio.bajuadat.mvkrpz",
+            "certificate_hash": "c4f6bf1045955f7d9a6d3fe560c5472be3318d59"
+          }
+        },
+        {
+          "client_id": "748401117957-b3p100p721k2n4ulp38kf0idhl7jte2g.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCmIrRVnAFKpTW4sc_OAmIK1ljlIRaPHLs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "748401117957-b3p100p721k2n4ulp38kf0idhl7jte2g.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

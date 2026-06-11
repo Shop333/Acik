@@ -1,0 +1,8 @@
+{
+  "name": "Remix: BajuAdat",
+  "description": "Toko online baju adat Bali berkualitas dengan pendamping AI dan pemilihan alamat kurir Google Maps.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
