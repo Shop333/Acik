@@ -35,6 +35,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlin.math.absoluteValue
 import kotlin.math.roundToInt
+import androidx.compose.ui.viewinterop.AndroidView
+import org.osmdroid.config.Configuration
+import org.osmdroid.tileprovider.tilesource.TileSourceFactory
+import org.osmdroid.util.GeoPoint
+import org.osmdroid.views.MapView
+import org.osmdroid.views.overlay.Marker
 
 data class BaliLocation(
     val name: String,
@@ -65,7 +71,7 @@ fun InteractiveMapPicker(
     var lat by remember { mutableStateOf(initialLat) }
     var lng by remember { mutableStateOf(initialLng) }
     var address by remember { mutableStateOf(if (initialAddress.isEmpty()) BaliDistricts[0].address else initialAddress) }
-    var mapZoom by remember { mutableFloatStateOf(1.2f) }
+    var mapZoom by remember { mutableDoubleStateOf(14.0) }
     var searchQuery by remember { mutableStateOf("") }
     
     // Custom viewport coordinate panning simulation
@@ -100,13 +106,13 @@ fun InteractiveMapPicker(
                 Spacer(modifier = Modifier.width(8.dp))
                 Column {
                     Text(
-                        "Konfirmasi Lokasi G-Maps",
+                        "Konfirmasi Lokasi OSM Map",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onBackground
                     )
                     Text(
-                        "Atur titik koordinat GPS pengiriman barang",
+                        "Atur titik koordinat GPS pengiriman barang secara gratis",
                         style = MaterialTheme.typography.bodySmall,
                         color = Color.Gray
                     )
@@ -131,9 +137,6 @@ fun InteractiveMapPicker(
                             lat = matched.latitude
                             lng = matched.longitude
                             address = matched.address
-                            // Center viewport around match
-                            mapCenterX = 500f + ((lng - 115.2625) * 1200 / mapZoom).toFloat()
-                            mapCenterY = 400f - ((lat - (-8.5069)) * 1200 / mapZoom).toFloat()
                         }
                     },
                     modifier = Modifier
@@ -164,9 +167,6 @@ fun InteractiveMapPicker(
                                 lat = location.latitude
                                 lng = location.longitude
                                 address = location.address
-                                // Center coordinate on viewport
-                                mapCenterX = 400f
-                                mapCenterY = 300f
                             },
                             label = { Text(location.name, fontSize = 12.sp) },
                             leadingIcon = {
@@ -191,213 +191,77 @@ fun InteractiveMapPicker(
                     .padding(horizontal = 16.dp, vertical = 8.dp)
                     .clip(RoundedCornerShape(16.dp))
                     .border(1.5.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.3f), RoundedCornerShape(16.dp))
-                    .background(if (mapStyle == "Satelit (G-Map)") Color(0xFF1E293B) else Color(0xFFF1F5F9))
+                    .background(Color(0xFFE2E8F0))
             ) {
-                // Animated bounce for pin
-                val infiniteTransition = rememberInfiniteTransition(label = "pin_bounce")
-                val bounceOffset by infiniteTransition.animateFloat(
-                    initialValue = -12f,
-                    targetValue = 0f,
-                    animationSpec = infiniteRepeatable(
-                        animation = tween(600, easing = FastOutSlowInEasing),
-                        repeatMode = RepeatMode.Reverse
-                    ),
-                    label = "bounce"
-                )
+                // Real OpenStreetMap view integration using org.osmdroid.views.MapView
+                AndroidView(
+                    factory = { ctx ->
+                        // Configure OSM user-agent
+                        Configuration.getInstance().userAgentValue = ctx.packageName
+                        
+                        MapView(ctx).apply {
+                            setTileSource(TileSourceFactory.MAPNIK)
+                            setMultiTouchControls(true)
+                            zoomController.setVisibility(org.osmdroid.views.CustomZoomButtonsController.Visibility.NEVER)
+                            
+                            // Center on start position
+                            controller.setZoom(mapZoom)
+                            val startPoint = GeoPoint(lat, lng)
+                            controller.setCenter(startPoint)
 
-                // Vector Map Canvas Drawing with responsive tapping
-                Canvas(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .pointerInput(Unit) {
-                            detectTapGestures { tapOffset ->
-                                // Calculate coordinate from tap position relative to map center and zoom level
-                                val dx = tapOffset.x - (size.width / 2f)
-                                val dy = tapOffset.y - (size.height / 2f)
-                                
-                                // Map calculations
-                                lng = 115.2625 + (dx / (300 * mapZoom))
-                                lat = -8.5069 - (dy / (300 * mapZoom))
-                                
-                                // Generate a robust Bali-styled address
-                                val rId = (lat.absoluteValue * 1000 + lng * 1000).roundToInt()
-                                address = when {
-                                    lat > -8.55 -> "Jl. Raya Ubud No. ${rId % 80 + 1}, Padangtegal, Ubud, Gianyar"
-                                    lat < -8.65 && lng > 115.24 -> "Jl. Bypass Ngurah Rai No. ${rId % 100 + 10}, Sanur, Kota Denpasar"
-                                    lat < -8.65 && lng <= 115.24 -> "Jl. Suniaraja No. ${rId % 150 + 2}, Dauh Puri Kangin, Kota Denpasar"
-                                    lng < 115.18 -> "Jl. Sunset Road Raya No. ${rId % 200 + 40}, Seminyak, Kuta, Badung"
-                                    else -> "Jl. Raya Uluwatu No. ${rId % 100 + 20}, Jimbaran, Kuta Selatan, Badung"
-                                }
+                            // Initial draggable Marker for shipment location
+                            val marker = Marker(this).apply {
+                                position = startPoint
+                                setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
+                                title = "Geser penanda untuk ubah alamat"
+                                isDraggable = true
+                                setOnMarkerDragListener(object : Marker.OnMarkerDragListener {
+                                    override fun onMarkerDrag(m: Marker?) {}
+                                    override fun onMarkerDragStart(m: Marker?) {}
+                                    override fun onMarkerDragEnd(m: Marker?) {
+                                        m?.let {
+                                            lat = it.position.latitude
+                                            lng = it.position.longitude
+                                            
+                                            // Simulated local reverse-geocoding of Bali address based on updated coordinates
+                                            val rId = (lat.absoluteValue * 1000 + lng * 1000).roundToInt()
+                                            address = when {
+                                                lat > -8.55 -> "Jl. Raya Ubud No. ${rId % 80 + 1}, Padangtegal, Ubud, Gianyar"
+                                                lat < -8.65 && lng > 115.24 -> "Jl. Bypass Ngurah Rai No. ${rId % 100 + 10}, Sanur, Kota Denpasar"
+                                                lat < -8.65 && lng <= 115.24 -> "Jl. Suniaraja No. ${rId % 150 + 2}, Dauh Puri Kangin, Kota Denpasar"
+                                                lng < 115.18 -> "Jl. Sunset Road Raya No. ${rId % 200 + 40}, Seminyak, Kuta, Badung"
+                                                else -> "Jl. Raya Uluwatu No. ${rId % 100 + 20}, Jimbaran, Kuta Selatan, Badung"
+                                            }
+                                        }
+                                    }
+                                })
+                            }
+                            overlays.add(marker)
+                        }
+                    },
+                    update = { mv ->
+                        val currentCenter = mv.mapCenter
+                        if ((currentCenter.latitude - lat).absoluteValue > 0.0001 || 
+                            (currentCenter.longitude - lng).absoluteValue > 0.0001) {
+                            val geoPoint = GeoPoint(lat, lng)
+                            mv.controller.animateTo(geoPoint)
+                            
+                            // Re-sync markers
+                            mv.overlays.filterIsInstance<Marker>().forEach { m ->
+                                m.position = geoPoint
                             }
                         }
-                ) {
-                    val w = size.width
-                    val h = size.height
-                    
-                    // Center of Bali drawing center is parent center
-                    val cx = w / 2f
-                    val cy = h / 2f
-
-                    // Draw Grid
-                    val gridSpacing = 40f * mapZoom
-                    val gridColor = if (mapStyle == "Satelit (G-Map)") Color.White.copy(alpha = 0.05f) else Color.Black.copy(alpha = 0.04f)
-                    
-                    var xVal = 0f
-                    while (xVal < w) {
-                        drawLine(gridColor, Offset(xVal, 0f), Offset(xVal, h), strokeWidth = 1f)
-                        xVal += gridSpacing
-                    }
-                    var yVal = 0f
-                    while (yVal < h) {
-                        drawLine(gridColor, Offset(0f, yVal), Offset(w, yVal), strokeWidth = 1f)
-                        yVal += gridSpacing
-                    }
-
-                    // Draw Coastlines & Roads
-                    val primaryColor = if (mapStyle == "Satelit (G-Map)") Color(0xFFD97706) else Color(0xFF6366F1)
-                    val waterColor = if (mapStyle == "Satelit (G-Map)") Color(0xFF0F172A) else Color(0xFFE0F2FE)
-                    val landColor = if (mapStyle == "Satelit (G-Map)") Color(0xFF1E293B) else Color(0xFFF8FAFC)
-                    val roadColor = if (mapStyle == "Satelit (G-Map)") Color(0xFF334155) else Color(0xFFFFFFFF)
-
-                    // Draw ocean border
-                    drawRect(color = waterColor, size = Size(w, h))
-
-                    // Draw beautiful stylized land contour of Southern Bali
-                    val landPath = Path().apply {
-                        moveTo(0f, h * 0.4f)
-                        quadraticTo(cx * 0.8f, cy * 0.5f, cx * 1.2f, cy * 0.2f)
-                        lineTo(w, cy * 0.4f)
-                        lineTo(w, h)
-                        lineTo(0f, h)
-                        close()
-                    }
-                    drawPath(path = landPath, color = landColor)
-
-                    // Draw main Bali highways (Bypass Ngurah Rai / Bypass Ida Bagus Mantra)
-                    val mainHighway = Path().apply {
-                        moveTo(0f, cy * 1.1f)
-                        quadraticTo(cx * 0.7f, cy * 1.0f, cx * 1.2f, cy * 0.9f)
-                        quadraticTo(cx * 1.5f, cy * 1.1f, w, cy * 1.2f)
-                    }
-                    drawPath(
-                        path = mainHighway,
-                        color = roadColor,
-                        style = Stroke(width = 8f * mapZoom)
-                    )
-                    drawPath(
-                        path = mainHighway,
-                        color = primaryColor.copy(alpha = 0.4f),
-                        style = Stroke(width = 10f * mapZoom)
-                    )
-
-                    // Draw secondary roads leading to Ubud (northwards)
-                    val ubudRoad = Path().apply {
-                        moveTo(cx * 1.0f, cy * 0.95f)
-                        quadraticTo(cx * 0.95f, cy * 0.6f, cx * 1.05f, cy * 0.35f)
-                    }
-                    drawPath(
-                        path = ubudRoad,
-                        color = roadColor,
-                        style = Stroke(width = 6f * mapZoom)
-                    )
-
-                    // Draw hub dots
-                    BaliDistricts.forEach { dist ->
-                        // Calculate offset coordinates
-                        val xOffset = cx + ((dist.longitude - lng) * 300 * mapZoom).toFloat()
-                        val yOffset = cy - ((dist.latitude - lat) * 300 * mapZoom).toFloat()
-
-                        if (xOffset in 0f..w && yOffset in 0f..h) {
-                            // Circular pulse representing the area
-                            drawCircle(
-                                color = primaryColor.copy(alpha = 0.15f),
-                                radius = 24f * mapZoom,
-                                center = Offset(xOffset, yOffset)
-                            )
-                            drawCircle(
-                                color = primaryColor,
-                                radius = 6f * mapZoom,
-                                center = Offset(xOffset, yOffset)
-                            )
-
-                            // Label
-                            drawText(
-                                textMeasurer = textMeasurer,
-                                text = dist.name,
-                                topLeft = Offset(xOffset + 10f, yOffset - 16f),
-                                style = TextStyle(
-                                    color = if (mapStyle == "Satelit (G-Map)") Color.White.copy(alpha = 0.8f) else Color.Black.copy(alpha = 0.8f),
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            )
+                        if (mv.zoomLevelDouble != mapZoom) {
+                            mv.controller.setZoom(mapZoom)
                         }
-                    }
-
-                    // Water Label
-                    drawText(
-                        textMeasurer = textMeasurer,
-                        text = "SAMUDERA HINDIA",
-                        topLeft = Offset(cx * 0.3f, cy * 1.5f),
-                        style = TextStyle(
-                            color = if (mapStyle == "Satelit (G-Map)") Color.White.copy(alpha = 0.25f) else Color.Blue.copy(alpha = 0.25f),
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold,
-                            letterSpacing = 4.sp
-                        )
-                    )
-                }
-
-                // Stationary Target Marker at center of local view
-                Box(
+                        mv.invalidate()
+                    },
                     modifier = Modifier
-                        .align(Alignment.Center)
-                        .offset(y = bounceOffset.dp),
-                    contentAlignment = Alignment.BottomCenter
-                ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        modifier = Modifier.wrapContentSize()
-                    ) {
-                        // Coordinates preview tooltip
-                        Box(
-                            modifier = Modifier
-                                .background(MaterialTheme.colorScheme.primary, RoundedCornerShape(8.dp))
-                                .padding(horizontal = 8.dp, vertical = 4.dp)
-                                .shadow(2.dp)
-                        ) {
-                            Text(
-                                String.format("%.4f, %.4f", lat, lng),
-                                color = Color.White,
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                        
-                        // Custom Balinese Gold pin icon representation
-                        Icon(
-                            imageVector = Icons.Default.Place,
-                            contentDescription = "Pin Peta",
-                            tint = Color(0xFFD97706), // Gold Accent
-                            modifier = Modifier
-                                .size(44.dp)
-                                .shadow(1.dp, CircleShape)
-                        )
-                        
-                        Spacer(modifier = Modifier.height(4.dp))
-                    }
-                }
-
-                // Pin base Shadow
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.Center)
-                        .offset(y = 2.dp)
-                        .size(16.dp, 4.dp)
-                        .background(Color.Black.copy(alpha = 0.4f), CircleShape)
+                        .fillMaxSize()
+                        .testTag("osm_map_view")
                 )
 
-                // Map control buttons (Style TOGGLE, Zoom IN, Zoom OUT, Reset Center)
+                // Map control buttons (Zoom IN, Zoom OUT, Reset Center)
                 Column(
                     modifier = Modifier
                         .align(Alignment.TopEnd)
@@ -405,22 +269,7 @@ fun InteractiveMapPicker(
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     SmallFloatingActionButton(
-                        onClick = {
-                            mapStyle = if (mapStyle == "Satelit (G-Map)") "Standar" else "Satelit (G-Map)"
-                        },
-                        containerColor = MaterialTheme.colorScheme.surface,
-                        contentColor = MaterialTheme.colorScheme.onSurface,
-                        shape = CircleShape,
-                        modifier = Modifier.testTag("map_style_toggle")
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Menu,
-                            contentDescription = "Map Style"
-                        )
-                    }
-
-                    SmallFloatingActionButton(
-                        onClick = { mapZoom = (mapZoom + 0.3f).coerceAtMost(3.0f) },
+                        onClick = { mapZoom = (mapZoom + 1.0).coerceAtMost(20.0) },
                         containerColor = MaterialTheme.colorScheme.surface,
                         contentColor = MaterialTheme.colorScheme.onSurface,
                         shape = CircleShape,
@@ -430,7 +279,7 @@ fun InteractiveMapPicker(
                     }
 
                     SmallFloatingActionButton(
-                        onClick = { mapZoom = (mapZoom - 0.3f).coerceAtLeast(0.6f) },
+                        onClick = { mapZoom = (mapZoom - 1.0).coerceAtLeast(4.0) },
                         containerColor = MaterialTheme.colorScheme.surface,
                         contentColor = MaterialTheme.colorScheme.onSurface,
                         shape = CircleShape,
@@ -456,7 +305,7 @@ fun InteractiveMapPicker(
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        "Google Maps API 3D Active",
+                        "OpenStreetMap Active (100% Free)",
                         color = Color.White,
                         fontSize = 10.sp,
                         fontWeight = FontWeight.Medium

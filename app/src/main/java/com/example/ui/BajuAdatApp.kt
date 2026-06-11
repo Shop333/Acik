@@ -1655,7 +1655,7 @@ fun KeranjangScreen(viewModel: BajuAdatViewModel) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Icon(Icons.Default.Place, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                                     Spacer(modifier = Modifier.width(6.dp))
-                                    Text("Alamat Pengiriman G-Maps", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                                    Text("Alamat Pengiriman OSM", fontWeight = FontWeight.Bold, fontSize = 14.sp)
                                 }
 
                                 Button(
@@ -1667,7 +1667,7 @@ fun KeranjangScreen(viewModel: BajuAdatViewModel) {
                                 ) {
                                     Icon(Icons.Default.Map, contentDescription = null, modifier = Modifier.size(16.dp))
                                     Spacer(modifier = Modifier.width(4.dp))
-                                    Text("Pilih Maps", fontSize = 12.sp)
+                                    Text("Peta OSM", fontSize = 12.sp)
                                 }
                             }
 
@@ -2117,7 +2117,7 @@ fun ProfilScreen(viewModel: BajuAdatViewModel, onNavigateToBeranda: () -> Unit) 
                         ) {
                             Icon(Icons.Default.Map, contentDescription = null)
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("Atur Koordinat di G-Maps")
+                            Text("Atur Koordinat di Peta OSM")
                         }
 
                         Text(

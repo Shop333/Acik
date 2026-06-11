@@ -95,6 +95,7 @@ dependencies {
   implementation(libs.androidx.room.ktx)
   implementation(libs.androidx.room.runtime)
   implementation(libs.coil.compose)
+  implementation("org.osmdroid:osmdroid-android:6.1.18")
   implementation(libs.converter.moshi)
   implementation("com.google.android.gms:play-services-auth:21.2.0")
   // implementation(libs.firebase.ai)
