@@ -132,3 +132,12 @@ tasks.register<Exec>("runSeed") {
   commandLine("node", "${project.rootDir}/seed.js")
 }
 
+tasks.register<Copy>("copyApkToBuildOutputs") {
+  from(layout.buildDirectory.file("outputs/apk/debug/app-debug.apk"))
+  into(file("${project.rootDir}/.build-outputs"))
+}
+
+tasks.matching { it.name == "assembleDebug" }.configureEach {
+  finalizedBy("copyApkToBuildOutputs")
+}
+
