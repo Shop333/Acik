@@ -133,8 +133,29 @@ fun AuthScreen(viewModel: BajuAdatViewModel) {
 
     // Set up Google Sign-In options & launcher
     val gso = remember {
+        val webClientId = try {
+            val jsonString = context.assets.open("google-services.json").bufferedReader().use { it.readText() }
+            val root = JSONObject(jsonString)
+            val clients = root.getJSONArray("client")
+            var foundId = ""
+            if (clients.length() > 0) {
+                val clientList = clients.getJSONObject(0)
+                val oauthClients = clientList.getJSONArray("oauth_client")
+                for (i in 0 until oauthClients.length()) {
+                    val oauth = oauthClients.getJSONObject(i)
+                    if (oauth.getInt("client_type") == 3) {
+                        foundId = oauth.getString("client_id")
+                        break
+                    }
+                }
+            }
+            if (foundId.isNotEmpty()) foundId else context.getString(R.string.default_web_client_id)
+        } catch (e: Exception) {
+            context.getString(R.string.default_web_client_id)
+        }
+
         GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
-            .requestIdToken(context.getString(R.string.default_web_client_id))
+            .requestIdToken(webClientId)
             .requestEmail()
             .build()
     }
